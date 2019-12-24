@@ -10,6 +10,7 @@
 
 package org.webrtc;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
@@ -25,6 +26,11 @@ public class NV21Buffer implements VideoFrame.Buffer {
     this.width = width;
     this.height = height;
     this.refCountDelegate = new RefCountDelegate(releaseCallback);
+  }
+
+  @Override
+  public ByteBuffer data() {
+    return ByteBuffer.wrap(data);
   }
 
   @Override

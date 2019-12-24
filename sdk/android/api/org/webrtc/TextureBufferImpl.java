@@ -10,6 +10,7 @@
 
 package org.webrtc;
 
+import java.nio.ByteBuffer;
 import android.graphics.Matrix;
 import javax.annotation.Nullable;
 import android.os.Handler;
@@ -53,6 +54,11 @@ public class TextureBufferImpl implements VideoFrame.TextureBuffer {
   @Override
   public Matrix getTransformMatrix() {
     return transformMatrix;
+  }
+
+  @Override
+  public ByteBuffer data() {
+    return null;
   }
 
   @Override

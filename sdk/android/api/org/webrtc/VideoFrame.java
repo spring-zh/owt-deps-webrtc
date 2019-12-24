@@ -35,6 +35,11 @@ public class VideoFrame implements RefCounted {
    * and the buffer needs to be returned to the VideoSource as soon as all references are gone.
    */
   public interface Buffer extends RefCounted {
+
+    /**
+     * Get the base buffer
+     */
+    ByteBuffer data();
     /**
      * Resolution of the buffer in pixels.
      */

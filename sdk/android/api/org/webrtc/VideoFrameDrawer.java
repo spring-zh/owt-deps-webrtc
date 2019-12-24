@@ -132,6 +132,68 @@ public class VideoFrameDrawer {
     }
   }
 
+  /**
+   * Helper class for uploading YUV bytebuffer frames to textures that handles stride > width. This
+   * class keeps an internal ByteBuffer to avoid unnecessary allocations for intermediate copies.
+   */
+  private static class RgbUploader {
+ 
+    @Nullable private int[] rgbTextures;
+
+    /**
+     * Upload |planes| into OpenGL textures, taking stride into consideration.
+     *
+     * @return Array of three texture indices corresponding to Y-, U-, and V-plane respectively.
+     */
+    @Nullable
+    public int[] uploadRgbData(int width, int height, boolean hasAlpha, ByteBuffer rgb) {
+
+      int stridebytes = hasAlpha ? (width*4) : (width*3);
+      // Make sure YUV textures are allocated.
+      if (rgbTextures == null) {
+          rgbTextures = new int[1];
+          rgbTextures[0] = GlUtil.generateTexture(GLES20.GL_TEXTURE_2D);
+      }
+      // Upload each plane.
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, rgbTextures[0]);
+        // GLES only accepts packed data, i.e. stride == planeWidth.
+
+        if(hasAlpha){
+          GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width,
+            height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, rgb);
+        }else {
+          GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGB, width,
+            height, 0, GLES20.GL_RGB, GLES20.GL_UNSIGNED_BYTE, rgb);
+        }
+        
+      
+      return rgbTextures;
+    }
+
+    @Nullable
+    public int[] uploadFromBuffer(VideoFrame.Buffer buffer) {
+      return uploadRgbData(buffer.getWidth(), buffer.getHeight(), true, buffer.data());
+    }
+
+    @Nullable
+    public int[] getRgbTextures() {
+      return rgbTextures;
+    }
+
+    /**
+     * Releases cached resources. Uploader can still be used and the resources will be reallocated
+     * on first use.
+     */
+    public void release() {
+      if (rgbTextures != null) {
+        GLES20.glDeleteTextures(1, rgbTextures, 0);
+        rgbTextures = null;
+      }
+    }
+  }
+
   private static int distance(float x0, float y0, float x1, float y1) {
     return (int) Math.round(Math.hypot(x1 - x0, y1 - y0));
   }
@@ -169,6 +231,7 @@ public class VideoFrameDrawer {
   }
 
   private final YuvUploader yuvUploader = new YuvUploader();
+  private final RgbUploader rgbUploader = new RgbUploader();
   // This variable will only be used for checking reference equality and is used for caching I420
   // textures.
   @Nullable private VideoFrame lastI420Frame;
@@ -211,21 +274,34 @@ public class VideoFrameDrawer {
     } else {
       // Only upload the I420 data to textures once per frame, if we are called multiple times
       // with the same frame.
+      boolean isRgbBuffer = (frame.getBuffer() instanceof RGBBuffer);
       if (frame != lastI420Frame) {
         lastI420Frame = frame;
-        final VideoFrame.I420Buffer i420Buffer = frame.getBuffer().toI420();
-        yuvUploader.uploadFromBuffer(i420Buffer);
-        i420Buffer.release();
+        if(isRgbBuffer){
+          rgbUploader.uploadFromBuffer(frame.getBuffer());
+        }else {
+          final VideoFrame.I420Buffer i420Buffer = frame.getBuffer().toI420();
+          yuvUploader.uploadFromBuffer(i420Buffer);
+          i420Buffer.release();
+        }
+        
       }
 
-      drawer.drawYuv(yuvUploader.getYuvTextures(),
+      if(isRgbBuffer){
+        drawer.drawRgb(rgbUploader.getRgbTextures()[0],
           RendererCommon.convertMatrixFromAndroidGraphicsMatrix(renderMatrix), renderWidth,
           renderHeight, viewportX, viewportY, viewportWidth, viewportHeight);
+      }else {
+        drawer.drawYuv(yuvUploader.getYuvTextures(),
+          RendererCommon.convertMatrixFromAndroidGraphicsMatrix(renderMatrix), renderWidth,
+          renderHeight, viewportX, viewportY, viewportWidth, viewportHeight);
+      }
     }
   }
 
   public void release() {
     yuvUploader.release();
+    rgbUploader.release();
     lastI420Frame = null;
   }
 }

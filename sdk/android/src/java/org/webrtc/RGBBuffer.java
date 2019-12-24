@@ -13,21 +13,31 @@ package org.webrtc;
 import java.nio.ByteBuffer;
 import javax.annotation.Nullable;
 
-public class NV12Buffer implements VideoFrame.Buffer {
+public class RGBBuffer implements VideoFrame.Buffer {
   private final int width;
   private final int height;
   private final int stride;
   private final int sliceHeight;
   private final ByteBuffer buffer;
+  private final int colorType;
   private final RefCountDelegate refCountDelegate;
 
-  public NV12Buffer(int width, int height, int stride, int sliceHeight, ByteBuffer buffer,
+  //for color_type
+  public final static int COLOR_ARGB = 0;
+  public final static int COLOR_RGBA = 1;
+  public final static int COLOR_BGRA = 2;
+  public final static int COLOR_ABGR = 3;
+  public final static int COLOR_RGB = 4;
+  public final static int COLOR_BGR = 5;
+
+  public RGBBuffer(int width, int height, int stride, int sliceHeight, ByteBuffer buffer, int colorType, 
       @Nullable Runnable releaseCallback) {
     this.width = width;
     this.height = height;
     this.stride = stride;
     this.sliceHeight = sliceHeight;
     this.buffer = buffer;
+    this.colorType = colorType;
     this.refCountDelegate = new RefCountDelegate(releaseCallback);
   }
 
@@ -67,12 +77,12 @@ public class NV12Buffer implements VideoFrame.Buffer {
     JavaI420Buffer newBuffer = JavaI420Buffer.allocate(scaleWidth, scaleHeight);
     nativeCropAndScale(cropX, cropY, cropWidth, cropHeight, scaleWidth, scaleHeight, buffer, width,
         height, stride, sliceHeight, newBuffer.getDataY(), newBuffer.getStrideY(),
-        newBuffer.getDataU(), newBuffer.getStrideU(), newBuffer.getDataV(), newBuffer.getStrideV());
+        newBuffer.getDataU(), newBuffer.getStrideU(), newBuffer.getDataV(), newBuffer.getStrideV(), colorType);
     return newBuffer;
   }
 
   private static native void nativeCropAndScale(int cropX, int cropY, int cropWidth, int cropHeight,
       int scaleWidth, int scaleHeight, ByteBuffer src, int srcWidth, int srcHeight, int srcStride,
       int srcSliceHeight, ByteBuffer dstY, int dstStrideY, ByteBuffer dstU, int dstStrideU,
-      ByteBuffer dstV, int dstStrideV);
+      ByteBuffer dstV, int dstStrideV, int colorType);
 }

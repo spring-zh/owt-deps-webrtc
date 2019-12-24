@@ -103,6 +103,11 @@ public class JavaI420Buffer implements VideoFrame.I420Buffer {
   }
 
   @Override
+  public ByteBuffer data() {
+    return dataY;
+  }
+
+  @Override
   public int getWidth() {
     return width;
   }
